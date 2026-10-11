@@ -64,6 +64,7 @@ extern const uint32_t kZucchiniMinorPayloadVersion;
 
 // THe minor version that allows LZ4DIFF operation
 constexpr uint32_t kLZ4DIFFMinorPayloadVersion = 9;
+constexpr uint32_t kZstdMinorPayloadVersion = 10;
 
 // The minimum and maximum supported minor version.
 extern const uint32_t kMinSupportedMinorPayloadVersion;

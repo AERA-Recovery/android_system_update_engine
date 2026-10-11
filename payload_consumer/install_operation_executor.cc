@@ -33,6 +33,7 @@
 #include <zucchini/zucchini.h>
 
 #include "update_engine/common/utils.h"
+#include "update_engine/common/zstd_decode.h"
 #include "update_engine/lz4diff/lz4patch.h"
 #include "update_engine/lz4diff/lz4diff_compress.h"
 #include "update_engine/payload_consumer/bzip_extent_writer.h"
@@ -181,7 +182,22 @@ bool InstallOperationExecutor::ExecuteReplaceOperation(
     const void* data) {
   TEST_AND_RETURN_FALSE(operation.type() == InstallOperation::REPLACE ||
                         operation.type() == InstallOperation::REPLACE_BZ ||
-                        operation.type() == InstallOperation::REPLACE_XZ);
+                        operation.type() == InstallOperation::REPLACE_XZ ||
+                        operation.type() == InstallOperation::REPLACE_ZSTD);
+  if (operation.type() == InstallOperation::REPLACE_ZSTD) {
+    uint64_t expected = 0;
+    TEST_AND_RETURN_FALSE(block_size_ != 0);
+    for (const auto& extent : operation.dst_extents()) {
+      TEST_AND_RETURN_FALSE(extent.num_blocks() <= (UINT64_MAX - expected) / block_size_);
+      expected += extent.num_blocks() * block_size_;
+    }
+    TEST_AND_RETURN_FALSE(operation.data_length() <= SIZE_MAX);
+    TEST_AND_RETURN_FALSE(writer->Init(operation.dst_extents(), block_size_));
+    return DecodeZstd(data, operation.data_length(), expected,
+                      [&](const void* bytes, size_t count) {
+                        return writer->Write(bytes, count);
+                      });
+  }
   // Setup the ExtentWriter stack based on the operation type.
   if (operation.type() == InstallOperation::REPLACE_BZ) {
     writer.reset(new BzipExtentWriter(std::move(writer)));

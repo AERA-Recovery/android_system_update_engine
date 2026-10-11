@@ -17,6 +17,7 @@
 #include "update_engine/payload_consumer/install_operation_executor.h"
 
 #include <fcntl.h>
+#include <zstd.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -131,6 +132,30 @@ class InstallOperationExecutorTest : public ::testing::Test {
 
   InstallOperationExecutor executor_{BLOCK_SIZE};
 };
+
+TEST_F(InstallOperationExecutorTest, ReplaceZstdOpTest) {
+  InstallOperation op;
+  op.set_type(InstallOperation::REPLACE_ZSTD);
+  *op.add_dst_extents() = ExtentForRange(2, 2);
+  *op.add_dst_extents() = ExtentForRange(6, 2);
+  brillo::Blob expected(BLOCK_SIZE * 4, 0x5a);
+  brillo::Blob compressed(ZSTD_compressBound(expected.size()));
+  const auto length = ZSTD_compress(compressed.data(), compressed.size(),
+                                    expected.data(), expected.size(), 3);
+  ASSERT_FALSE(ZSTD_isError(length));
+  op.set_data_length(length);
+  ASSERT_TRUE(executor_.ExecuteReplaceOperation(op,
+      std::make_unique<DirectExtentWriter>(target_fd_), compressed.data()));
+  brillo::Blob actual;
+  ASSERT_TRUE(utils::ReadExtents(target_.path(),
+      std::vector<Extent>{op.dst_extents().begin(), op.dst_extents().end()},
+      &actual, expected.size(), BLOCK_SIZE));
+  EXPECT_EQ(actual, expected);
+  VerityUntouchedExtents(op);
+  op.set_data_length(length - 1);
+  EXPECT_FALSE(executor_.ExecuteReplaceOperation(op,
+      std::make_unique<DirectExtentWriter>(target_fd_), compressed.data()));
+}
 
 TEST_F(InstallOperationExecutorTest, ReplaceOpTest) {
   InstallOperation op;

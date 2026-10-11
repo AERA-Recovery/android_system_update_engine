@@ -291,7 +291,8 @@ bool PayloadVersion::Validate() const {
                         minor == kVerityMinorPayloadVersion ||
                         minor == kPartialUpdateMinorPayloadVersion ||
                         minor == kZucchiniMinorPayloadVersion ||
-                        minor == kLZ4DIFFMinorPayloadVersion);
+                        minor == kLZ4DIFFMinorPayloadVersion ||
+                        minor == kZstdMinorPayloadVersion);
   return true;
 }
 
@@ -305,6 +306,9 @@ bool PayloadVersion::OperationAllowed(InstallOperation::Type operation) const {
       // These operations are included minor version 3 or newer and full
       // payloads.
       return true;
+
+    case InstallOperation::REPLACE_ZSTD:
+      return minor == kFullPayloadMinorVersion || minor >= kZstdMinorPayloadVersion;
 
     case InstallOperation::ZERO:
     case InstallOperation::DISCARD:

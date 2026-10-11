@@ -174,6 +174,7 @@ message InstallOperation {
     // On minor version 9 or newer, these operations are supported:
     LZ4DIFF_BSDIFF = 12;
     LZ4DIFF_PUFFDIFF = 13;
+    REPLACE_ZSTD = 14;  // Replace destination extents with Zstandard data.
   }
   required Type type = 1;
 
